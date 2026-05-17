@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { matchesAPI, resultsAPI, penaltiesAPI } from '../services/api'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 function Scoreboard() {
   const { matchId } = useParams()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [match, setMatch] = useState(null)
   const [results, setResults] = useState([])
   const [penalties, setPenalties] = useState([])
   const [loading, setLoading] = useState(true)
   const [currentTime, setCurrentTime] = useState(null)
-  const [viewMode, setViewMode] = useState('stage') // 'stage' or 'scheduled'
   const timerIntervalRef = useRef(null)
 
   useEffect(() => {
@@ -30,7 +31,7 @@ function Scoreboard() {
     }
   }, [matchId])
 
-  // Timer countdown for live matches
+  // Timer: elapsed seconds from match start (counts up)
   useEffect(() => {
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current)
@@ -42,12 +43,7 @@ function Scoreboard() {
       timerIntervalRef.current = setInterval(() => {
         setCurrentTime(prev => {
           if (prev !== null && prev !== undefined) {
-            const newTime = prev + 1
-            // Check if we've reached the duration
-            if (match.duration_minutes > 0 && newTime >= match.duration_minutes * 60) {
-              return match.duration_minutes * 60
-            }
-            return newTime
+            return prev + 1
           }
           return prev
         })
@@ -63,7 +59,7 @@ function Scoreboard() {
         clearInterval(timerIntervalRef.current)
       }
     }
-  }, [match?.status, match?.current_time, match?.duration_minutes])
+  }, [match?.status, match?.current_time])
 
   const loadMatchData = async () => {
     try {
@@ -159,14 +155,7 @@ function Scoreboard() {
   const team2TotalPenaltyPoints = team2Penalties.reduce((sum, p) => sum + (Number(p.points) || 0), 0)
 
   return (
-    <div style={{ 
-      minHeight: '100vh',
-      width: '100vw',
-      background: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1419 100%)',
-      padding: '3rem',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
+    <div className="rc-page" style={{ padding: 'var(--page-pad)' }}>
       {/* Animated Background Grid */}
       <div style={{
         position: 'absolute',
@@ -183,7 +172,7 @@ function Scoreboard() {
         pointerEvents: 'none'
       }} />
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: '1800px', margin: '0 auto' }}>
+      <div className="rc-page-inner" style={{ maxWidth: '1800px' }}>
         {/* Back Button */}
         <div style={{
           marginBottom: '2rem',
@@ -227,15 +216,7 @@ function Scoreboard() {
           textAlign: 'center',
           marginBottom: '2rem'
         }}>
-          <h1 style={{
-            margin: '0 0 2rem 0',
-            color: '#00ffff',
-            fontSize: '4rem',
-            fontWeight: 'bold',
-            textShadow: '0 0 40px rgba(0, 255, 255, 1), 0 0 80px rgba(0, 255, 255, 0.6)',
-            letterSpacing: '4px',
-            fontFamily: '"Orbitron", "Arial Black", sans-serif'
-          }}>
+          <h1 className="rc-scoreboard-title" style={{ margin: '0 0 1.5rem 0' }}>
             {match.match_name || 'MATCH'}
           </h1>
 
@@ -291,233 +272,80 @@ function Scoreboard() {
                   : match.status === 'paused' ? '⏸️ PAUSED'
                   : '📅 SCHEDULED'}
               </span>
-              {(match.status === 'live' || match.status === 'paused') && match.current_time !== null && match.current_time !== undefined && match.duration_minutes > 0 && (
-                <>
-                  <div style={{
-                    color: match.status === 'live' ? '#ffaa00' : '#a0e0ff',
-                    fontSize: '2.5rem',
-                    fontWeight: 'bold',
-                    fontFamily: '"Orbitron", monospace',
-                    textShadow: match.status === 'live' 
-                      ? '0 0 20px rgba(255, 170, 0, 0.8), 0 0 40px rgba(255, 170, 0, 0.4)'
-                      : '0 0 20px rgba(108, 117, 125, 0.8), 0 0 40px rgba(108, 117, 125, 0.4)',
-                    letterSpacing: '3px',
-                    minWidth: '120px',
-                    textAlign: 'center'
-                  }}>
-                    {(() => {
-                      const elapsedSeconds = currentTime || match.current_time || 0
-                      const totalDurationSeconds = match.duration_minutes * 60
-                      const remainingSeconds = Math.max(0, totalDurationSeconds - elapsedSeconds)
-                      const minutes = Math.floor(remainingSeconds / 60)
-                      const secs = remainingSeconds % 60
-                      return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-                    })()}
-                  </div>
-                  <span style={{
-                    color: '#6b9bc2',
-                    fontSize: '1rem',
-                    fontWeight: '500'
-                  }}>
-                    / {match.duration_minutes}:00
-                  </span>
-                </>
+              {(match.status === 'live' || match.status === 'paused') && match.current_time !== null && match.current_time !== undefined && (
+                <div style={{
+                  color: match.status === 'live' ? '#ffaa00' : '#a0e0ff',
+                  fontSize: '2.5rem',
+                  fontWeight: 'bold',
+                  fontFamily: '"Orbitron", monospace',
+                  textShadow: match.status === 'live' 
+                    ? '0 0 20px rgba(255, 170, 0, 0.8), 0 0 40px rgba(255, 170, 0, 0.4)'
+                    : '0 0 20px rgba(108, 117, 125, 0.8), 0 0 40px rgba(108, 117, 125, 0.4)',
+                  letterSpacing: '3px',
+                  minWidth: '120px',
+                  textAlign: 'center'
+                }}>
+                  {formatTime(currentTime ?? match.current_time ?? 0)}
+                </div>
               )}
             </div>
           </div>
 
-          {/* View Mode Buttons */}
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            gap: '1rem',
-            marginBottom: '2rem'
-          }}>
-            <button
-              onClick={() => setViewMode('stage')}
-              style={{
-                padding: '1rem 2rem',
-                background: viewMode === 'stage' 
-                  ? 'linear-gradient(135deg, rgba(0, 255, 255, 0.3) 0%, rgba(0, 200, 255, 0.3) 100%)'
-                  : 'rgba(0, 153, 255, 0.2)',
-                border: viewMode === 'stage'
-                  ? '2px solid rgba(0, 255, 255, 0.8)'
-                  : '2px solid rgba(0, 153, 255, 0.4)',
-                borderRadius: '12px',
-                color: '#00ffff',
-                fontSize: '1.2rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                textShadow: viewMode === 'stage' ? '0 0 20px rgba(0, 255, 255, 0.8)' : 'none',
-                boxShadow: viewMode === 'stage' 
-                  ? '0 0 30px rgba(0, 255, 255, 0.6), inset 0 0 20px rgba(0, 255, 255, 0.2)'
-                  : '0 0 10px rgba(0, 153, 255, 0.3)',
-                transition: 'all 0.3s'
-              }}
-            >
-              🏆 STAGE
-            </button>
-            <button
-              onClick={() => setViewMode('scheduled')}
-              style={{
-                padding: '1rem 2rem',
-                background: viewMode === 'scheduled' 
-                  ? 'linear-gradient(135deg, rgba(0, 255, 255, 0.3) 0%, rgba(0, 200, 255, 0.3) 100%)'
-                  : 'rgba(0, 153, 255, 0.2)',
-                border: viewMode === 'scheduled'
-                  ? '2px solid rgba(0, 255, 255, 0.8)'
-                  : '2px solid rgba(0, 153, 255, 0.4)',
-                borderRadius: '12px',
-                color: '#00ffff',
-                fontSize: '1.2rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                textTransform: 'uppercase',
-                textShadow: viewMode === 'scheduled' ? '0 0 20px rgba(0, 255, 255, 0.8)' : 'none',
-                boxShadow: viewMode === 'scheduled' 
-                  ? '0 0 30px rgba(0, 255, 255, 0.6), inset 0 0 20px rgba(0, 255, 255, 0.2)'
-                  : '0 0 10px rgba(0, 153, 255, 0.3)',
-                transition: 'all 0.3s'
-              }}
-            >
-              SCHEDULED
-            </button>
-          </div>
         </div>
 
 
         {/* Detailed Stats - one panel for solo, two for two teams */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: match.team2_id ? '1fr 1fr' : '1fr',
-          gap: '3rem'
-        }}>
+        <div className={`rc-scoreboard-teams${match.team2_id ? '' : ' rc-scoreboard-solo'}`}>
           {/* Team 1 Details */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(20, 30, 50, 0.9) 0%, rgba(15, 25, 40, 0.9) 100%)',
-            padding: '3rem',
-            borderRadius: '20px',
-            border: '2px solid rgba(0, 255, 255, 0.5)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 255, 255, 0.3), inset 0 0 30px rgba(0, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
+          <div className="rc-scoreboard-panel">
             <h3 style={{
               marginTop: 0,
-              marginBottom: '2.5rem',
+              marginBottom: '2rem',
               color: '#00ffff',
-              fontSize: '2.2rem',
+              fontSize: 'var(--title-md)',
               fontWeight: 'bold',
               textShadow: '0 0 20px rgba(0, 255, 255, 0.8)',
               textAlign: 'center',
               textTransform: 'uppercase',
-              letterSpacing: '2px'
+              letterSpacing: '2px',
+              wordBreak: 'break-word'
             }}>
               {match.team1_name || 'Team 1'} Details
             </h3>
             {team1Result ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', flex: 1 }}>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: '1fr 1fr', 
-                  gap: '2rem',
-                  alignItems: 'start'
-                }}>
-                  <div style={{
-                    padding: '1.5rem',
-                    background: 'rgba(0, 255, 255, 0.1)',
-                    border: '2px solid rgba(0, 255, 255, 0.5)',
-                    borderRadius: '12px',
-                    boxShadow: '0 0 20px rgba(0, 255, 255, 0.3)'
-                  }}>
-                    <div style={{ color: '#a0e0ff', fontSize: '1.1rem', marginBottom: '1rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Score</div>
-                    <div style={{ 
-                      color: '#00ffff', 
-                      fontSize: '3rem', 
-                      fontWeight: 'bold',
-                      textShadow: '0 0 20px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.4)',
-                      textAlign: 'center',
-                      fontFamily: '"Orbitron", monospace'
-                    }}>
-                      {finalScore1 || 0}
-                    </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1 }}>
+                <div className="rc-scoreboard-stats">
+                  <div className="rc-stat-box" style={{ background: 'rgba(0,255,255,0.1)', border: '2px solid rgba(0,255,255,0.5)', boxShadow: '0 0 20px rgba(0,255,255,0.3)' }}>
+                    <div className="rc-stat-label">Score</div>
+                    <div className="rc-stat-value" style={{ color: '#00ffff', textShadow: '0 0 20px rgba(0,255,255,0.8)' }}>{finalScore1 || 0}</div>
                   </div>
-                  <div style={{
-                    padding: '1.5rem',
-                    background: 'rgba(0, 255, 136, 0.1)',
-                    border: '2px solid rgba(0, 255, 136, 0.5)',
-                    borderRadius: '12px',
-                    boxShadow: '0 0 20px rgba(0, 255, 136, 0.3)'
-                  }}>
-                    <div style={{ color: '#a0e0ff', fontSize: '1.1rem', marginBottom: '1rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Tasks</div>
-                    <div style={{ 
-                      color: '#00ff88', 
-                      fontSize: '3rem', 
-                      fontWeight: 'bold',
-                      textShadow: '0 0 20px rgba(0, 255, 136, 0.8), 0 0 40px rgba(0, 255, 136, 0.4)',
-                      textAlign: 'center',
-                      fontFamily: '"Orbitron", monospace'
-                    }}>
-                      {team1Result.tasks_completed || 0}
-                    </div>
+                  <div className="rc-stat-box" style={{ background: 'rgba(0,255,136,0.1)', border: '2px solid rgba(0,255,136,0.5)', boxShadow: '0 0 20px rgba(0,255,136,0.3)' }}>
+                    <div className="rc-stat-label">Tasks</div>
+                    <div className="rc-stat-value" style={{ color: '#00ff88', textShadow: '0 0 20px rgba(0,255,136,0.8)' }}>{team1Result.tasks_completed || 0}</div>
                   </div>
-                  <div style={{
-                    padding: '1.5rem',
-                    background: 'rgba(0, 153, 255, 0.1)',
-                    border: '2px solid rgba(0, 153, 255, 0.5)',
-                    borderRadius: '12px',
-                    boxShadow: '0 0 20px rgba(0, 153, 255, 0.3)'
-                  }}>
-                    <div style={{ color: '#a0e0ff', fontSize: '1.1rem', marginBottom: '1rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Precision</div>
-                    <div style={{ 
-                      color: '#0099ff', 
-                      fontSize: '3rem', 
-                      fontWeight: 'bold',
-                      textShadow: '0 0 20px rgba(0, 153, 255, 0.8), 0 0 40px rgba(0, 153, 255, 0.4)',
-                      textAlign: 'center',
-                      fontFamily: '"Orbitron", monospace'
-                    }}>
-                      {team1Result.precision_points || 0}
-                    </div>
+                  <div className="rc-stat-box" style={{ background: 'rgba(0,153,255,0.1)', border: '2px solid rgba(0,153,255,0.5)', boxShadow: '0 0 20px rgba(0,153,255,0.3)' }}>
+                    <div className="rc-stat-label">Positive Pts</div>
+                    <div className="rc-stat-value" style={{ color: '#0099ff', textShadow: '0 0 20px rgba(0,153,255,0.8)' }}>{team1Result.precision_points || 0}</div>
                   </div>
-                  <div style={{
-                    padding: '1.5rem',
-                    background: 'rgba(255, 170, 0, 0.1)',
-                    border: '2px solid rgba(255, 170, 0, 0.5)',
-                    borderRadius: '12px',
-                    boxShadow: '0 0 20px rgba(255, 170, 0, 0.3)'
-                  }}>
-                    <div style={{ color: '#a0e0ff', fontSize: '1.1rem', marginBottom: '1rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Penalties</div>
-                    <div style={{ 
-                      color: '#ffaa00', 
-                      fontSize: '3rem', 
-                      fontWeight: 'bold',
-                      textShadow: '0 0 20px rgba(255, 170, 0, 0.8), 0 0 40px rgba(255, 170, 0, 0.4)',
-                      textAlign: 'center',
-                      fontFamily: '"Orbitron", monospace'
-                    }}>
-                      {team1TotalPenaltyPoints || 0}
-                    </div>
+                  <div className="rc-stat-box" style={{ background: 'rgba(255,170,0,0.1)', border: '2px solid rgba(255,170,0,0.5)', boxShadow: '0 0 20px rgba(255,170,0,0.3)' }}>
+                    <div className="rc-stat-label">Penalties</div>
+                    <div className="rc-stat-value" style={{ color: '#ffaa00', textShadow: '0 0 20px rgba(255,170,0,0.8)' }}>{team1TotalPenaltyPoints || 0}</div>
                   </div>
                 </div>
                 <div style={{
                   marginTop: 'auto',
-                  padding: '2rem',
-                  background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.2) 0%, rgba(0, 200, 255, 0.2) 100%)',
+                  padding: '1.5rem',
+                  background: 'linear-gradient(135deg, rgba(0,255,255,0.2) 0%, rgba(0,200,255,0.2) 100%)',
                   borderRadius: '16px',
-                  border: '3px solid rgba(0, 255, 255, 0.6)',
-                  boxShadow: '0 0 40px rgba(0, 255, 255, 0.6), inset 0 0 30px rgba(0, 255, 255, 0.2)'
+                  border: '3px solid rgba(0,255,255,0.6)',
+                  boxShadow: '0 0 40px rgba(0,255,255,0.6), inset 0 0 30px rgba(0,255,255,0.2)'
                 }}>
-                  <div style={{ 
+                  <div className="rc-score-total" style={{ 
                     color: '#00ffff', 
-                    fontSize: '3.5rem', 
                     fontWeight: 'bold', 
                     textAlign: 'center',
-                    textShadow: '0 0 40px rgba(0, 255, 255, 1), 0 0 80px rgba(0, 255, 255, 0.6)',
+                    textShadow: '0 0 40px rgba(0,255,255,1)',
                     fontFamily: '"Orbitron", monospace',
-                    letterSpacing: '3px'
                   }}>
                     Score: {finalScore1}
                   </div>
@@ -530,130 +358,55 @@ function Scoreboard() {
 
           {/* Team 2 Details - only when two teams */}
           {match.team2_id && (
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(20, 30, 50, 0.9) 0%, rgba(15, 25, 40, 0.9) 100%)',
-            padding: '3rem',
-            borderRadius: '20px',
-            border: '2px solid rgba(0, 255, 255, 0.5)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 255, 255, 0.3), inset 0 0 30px rgba(0, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
+          <div className="rc-scoreboard-panel">
             <h3 style={{
               marginTop: 0,
-              marginBottom: '2.5rem',
+              marginBottom: '2rem',
               color: '#00ffff',
-              fontSize: '2.2rem',
+              fontSize: 'var(--title-md)',
               fontWeight: 'bold',
               textShadow: '0 0 20px rgba(0, 255, 255, 0.8)',
               textAlign: 'center',
               textTransform: 'uppercase',
-              letterSpacing: '2px'
+              letterSpacing: '2px',
+              wordBreak: 'break-word'
             }}>
               {match.team2_name || 'Team 2'} Details
             </h3>
             {team2Result ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', flex: 1 }}>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: '1fr 1fr', 
-                  gap: '2rem',
-                  alignItems: 'start'
-                }}>
-                  <div style={{
-                    padding: '1.5rem',
-                    background: 'rgba(0, 255, 255, 0.1)',
-                    border: '2px solid rgba(0, 255, 255, 0.5)',
-                    borderRadius: '12px',
-                    boxShadow: '0 0 20px rgba(0, 255, 255, 0.3)'
-                  }}>
-                    <div style={{ color: '#a0e0ff', fontSize: '1.1rem', marginBottom: '1rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Score</div>
-                    <div style={{ 
-                      color: '#00ffff', 
-                      fontSize: '3rem', 
-                      fontWeight: 'bold',
-                      textShadow: '0 0 20px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.4)',
-                      textAlign: 'center',
-                      fontFamily: '"Orbitron", monospace'
-                    }}>
-                      {finalScore2 || 0}
-                    </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1 }}>
+                <div className="rc-scoreboard-stats">
+                  <div className="rc-stat-box" style={{ background: 'rgba(0,255,255,0.1)', border: '2px solid rgba(0,255,255,0.5)', boxShadow: '0 0 20px rgba(0,255,255,0.3)' }}>
+                    <div className="rc-stat-label">Score</div>
+                    <div className="rc-stat-value" style={{ color: '#00ffff', textShadow: '0 0 20px rgba(0,255,255,0.8)' }}>{finalScore2 || 0}</div>
                   </div>
-                  <div style={{
-                    padding: '1.5rem',
-                    background: 'rgba(0, 255, 136, 0.1)',
-                    border: '2px solid rgba(0, 255, 136, 0.5)',
-                    borderRadius: '12px',
-                    boxShadow: '0 0 20px rgba(0, 255, 136, 0.3)'
-                  }}>
-                    <div style={{ color: '#a0e0ff', fontSize: '1.1rem', marginBottom: '1rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Tasks</div>
-                    <div style={{ 
-                      color: '#00ff88', 
-                      fontSize: '3rem', 
-                      fontWeight: 'bold',
-                      textShadow: '0 0 20px rgba(0, 255, 136, 0.8), 0 0 40px rgba(0, 255, 136, 0.4)',
-                      textAlign: 'center',
-                      fontFamily: '"Orbitron", monospace'
-                    }}>
-                      {team2Result.tasks_completed || 0}
-                    </div>
+                  <div className="rc-stat-box" style={{ background: 'rgba(0,255,136,0.1)', border: '2px solid rgba(0,255,136,0.5)', boxShadow: '0 0 20px rgba(0,255,136,0.3)' }}>
+                    <div className="rc-stat-label">Tasks</div>
+                    <div className="rc-stat-value" style={{ color: '#00ff88', textShadow: '0 0 20px rgba(0,255,136,0.8)' }}>{team2Result.tasks_completed || 0}</div>
                   </div>
-                  <div style={{
-                    padding: '1.5rem',
-                    background: 'rgba(0, 153, 255, 0.1)',
-                    border: '2px solid rgba(0, 153, 255, 0.5)',
-                    borderRadius: '12px',
-                    boxShadow: '0 0 20px rgba(0, 153, 255, 0.3)'
-                  }}>
-                    <div style={{ color: '#a0e0ff', fontSize: '1.1rem', marginBottom: '1rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Precision</div>
-                    <div style={{ 
-                      color: '#0099ff', 
-                      fontSize: '3rem', 
-                      fontWeight: 'bold',
-                      textShadow: '0 0 20px rgba(0, 153, 255, 0.8), 0 0 40px rgba(0, 153, 255, 0.4)',
-                      textAlign: 'center',
-                      fontFamily: '"Orbitron", monospace'
-                    }}>
-                      {team2Result.precision_points || 0}
-                    </div>
+                  <div className="rc-stat-box" style={{ background: 'rgba(0,153,255,0.1)', border: '2px solid rgba(0,153,255,0.5)', boxShadow: '0 0 20px rgba(0,153,255,0.3)' }}>
+                    <div className="rc-stat-label">Positive Pts</div>
+                    <div className="rc-stat-value" style={{ color: '#0099ff', textShadow: '0 0 20px rgba(0,153,255,0.8)' }}>{team2Result.precision_points || 0}</div>
                   </div>
-                  <div style={{
-                    padding: '1.5rem',
-                    background: 'rgba(255, 170, 0, 0.1)',
-                    border: '2px solid rgba(255, 170, 0, 0.5)',
-                    borderRadius: '12px',
-                    boxShadow: '0 0 20px rgba(255, 170, 0, 0.3)'
-                  }}>
-                    <div style={{ color: '#a0e0ff', fontSize: '1.1rem', marginBottom: '1rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Penalties</div>
-                    <div style={{ 
-                      color: '#ffaa00', 
-                      fontSize: '3rem', 
-                      fontWeight: 'bold',
-                      textShadow: '0 0 20px rgba(255, 170, 0, 0.8), 0 0 40px rgba(255, 170, 0, 0.4)',
-                      textAlign: 'center',
-                      fontFamily: '"Orbitron", monospace'
-                    }}>
-                      {team2TotalPenaltyPoints || 0}
-                    </div>
+                  <div className="rc-stat-box" style={{ background: 'rgba(255,170,0,0.1)', border: '2px solid rgba(255,170,0,0.5)', boxShadow: '0 0 20px rgba(255,170,0,0.3)' }}>
+                    <div className="rc-stat-label">Penalties</div>
+                    <div className="rc-stat-value" style={{ color: '#ffaa00', textShadow: '0 0 20px rgba(255,170,0,0.8)' }}>{team2TotalPenaltyPoints || 0}</div>
                   </div>
                 </div>
                 <div style={{
                   marginTop: 'auto',
-                  padding: '2rem',
-                  background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.2) 0%, rgba(0, 200, 255, 0.2) 100%)',
+                  padding: '1.5rem',
+                  background: 'linear-gradient(135deg, rgba(0,255,255,0.2) 0%, rgba(0,200,255,0.2) 100%)',
                   borderRadius: '16px',
-                  border: '3px solid rgba(0, 255, 255, 0.6)',
-                  boxShadow: '0 0 40px rgba(0, 255, 255, 0.6), inset 0 0 30px rgba(0, 255, 255, 0.2)'
+                  border: '3px solid rgba(0,255,255,0.6)',
+                  boxShadow: '0 0 40px rgba(0,255,255,0.6), inset 0 0 30px rgba(0,255,255,0.2)'
                 }}>
-                  <div style={{ 
+                  <div className="rc-score-total" style={{ 
                     color: '#00ffff', 
-                    fontSize: '3.5rem', 
                     fontWeight: 'bold', 
                     textAlign: 'center',
-                    textShadow: '0 0 40px rgba(0, 255, 255, 1), 0 0 80px rgba(0, 255, 255, 0.6)',
+                    textShadow: '0 0 40px rgba(0,255,255,1)',
                     fontFamily: '"Orbitron", monospace',
-                    letterSpacing: '3px'
                   }}>
                     Score: {finalScore2}
                   </div>

@@ -317,11 +317,6 @@ def update_timer(user, match_id):
         
         if new_time is not None:
             match.current_time = int(new_time)
-            
-            # Auto-complete when timer reaches match duration
-            if match.duration_minutes > 0 and match.current_time >= (match.duration_minutes * 60):
-                match.status = 'completed'
-                match.current_time = match.duration_minutes * 60
         
         db.commit()
         db.refresh(match)

@@ -6,5 +6,6 @@ from .matches import Match
 from .results import Result
 from .penalties import Penalty
 from .timer import Timer
+from .split_times import SplitTime
 from . import user_teams
 

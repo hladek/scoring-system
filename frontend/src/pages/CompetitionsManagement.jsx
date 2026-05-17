@@ -1684,43 +1684,6 @@ function CompetitionsManagement() {
                             }}
                           />
                         </div>
-                        <div>
-                          <label style={{
-                            display: 'block',
-                            marginBottom: '0.75rem',
-                            color: '#00ffff',
-                            fontWeight: 'bold',
-                            fontSize: '1rem',
-                            textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'
-                          }}>
-                            🏆 Stage
-                          </label>
-                          <input
-                            type="text"
-                            value={matchFormData.stage}
-                            onChange={(e) => setMatchFormData({ ...matchFormData, stage: e.target.value })}
-                            placeholder="e.g., Quarterfinal, Semifinal"
-                            style={{
-                              width: '100%',
-                              padding: '0.75rem',
-                              background: 'rgba(0, 255, 255, 0.1)',
-                              border: '1px solid rgba(0, 255, 255, 0.3)',
-                              borderRadius: '8px',
-                              color: '#ffffff',
-                              fontSize: '1rem',
-                              outline: 'none',
-                              transition: 'all 0.3s'
-                            }}
-                            onFocus={(e) => {
-                              e.target.style.border = '1px solid rgba(0, 255, 255, 0.6)'
-                              e.target.style.boxShadow = '0 0 15px rgba(0, 255, 255, 0.4)'
-                            }}
-                            onBlur={(e) => {
-                              e.target.style.border = '1px solid rgba(0, 255, 255, 0.3)'
-                              e.target.style.boxShadow = 'none'
-                            }}
-                          />
-                        </div>
                       </div>
                       <div style={{ marginBottom: '1.5rem' }}>
                         <label style={{
@@ -1947,15 +1910,6 @@ function CompetitionsManagement() {
                               fontSize: '0.9rem'
                             }}>
                               ⏱️ Duration: {match.duration_minutes} minutes
-                            </p>
-                          )}
-                          {match.stage && (
-                            <p style={{
-                              margin: '0.5rem 0',
-                              color: '#a0e0ff',
-                              fontSize: '0.9rem'
-                            }}>
-                              🏆 Stage: {match.stage}
                             </p>
                           )}
                           <span style={{

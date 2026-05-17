@@ -7,7 +7,7 @@ from sqlalchemy import text
 import os
 
 # Import models to register with SQLAlchemy
-from models import users, teams, competitions as comp_models, matches as match_models, results as result_models, penalties as penalty_models, timer
+from models import users, teams, competitions as comp_models, matches as match_models, results as result_models, penalties as penalty_models, timer, split_times as split_times_model
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
@@ -66,11 +66,13 @@ from blueprints.results import results_bp, set_socketio as set_results_socketio
 from blueprints.penalties import penalties_bp, set_socketio as set_penalties_socketio
 from blueprints.teams import teams_bp
 from blueprints.user_teams import user_teams_bp
+from blueprints.split_times import split_times_bp, set_socketio as set_split_times_socketio
 
 set_competitions_socketio(socketio)
 set_matches_socketio(socketio)
 set_results_socketio(socketio)
 set_penalties_socketio(socketio)
+set_split_times_socketio(socketio)
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
 app.register_blueprint(competitions_bp, url_prefix='/api/competitions')
@@ -79,6 +81,7 @@ app.register_blueprint(results_bp, url_prefix='/api/results')
 app.register_blueprint(penalties_bp, url_prefix='/api/penalties')
 app.register_blueprint(teams_bp, url_prefix='/api/teams')
 app.register_blueprint(user_teams_bp, url_prefix='/api/user-teams')
+app.register_blueprint(split_times_bp, url_prefix='/api/splits')
 
 # WebSocket event handlers for real-time communication
 @socketio.on('connect')

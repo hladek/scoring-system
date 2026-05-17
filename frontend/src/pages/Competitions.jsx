@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { competitionsAPI, matchesAPI, resultsAPI, penaltiesAPI } from '../services/api'
+import { competitionsAPI, matchesAPI, resultsAPI, penaltiesAPI, splitTimesAPI } from '../services/api'
 import { getToken } from '../services/api'
 import { useNavigate } from 'react-router-dom'
 import { subscribeToCompetition, getSocket } from '../services/socket'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 function Competitions() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [competitions, setCompetitions] = useState([])
   const [selectedCompetition, setSelectedCompetition] = useState(null)
   const [matches, setMatches] = useState([])
@@ -125,7 +127,7 @@ function Competitions() {
                 lastLocalUpdate: Date.now()
               }
             } else {
-              // ALWAYS increment locally for real-time countdown
+              // ALWAYS increment locally for smooth elapsed-time display
               // This ensures smooth 1-second updates regardless of data refresh frequency
               newTimers[matchId] = {
                 value: currentTimerValue + 1,
@@ -225,46 +227,43 @@ function Competitions() {
       let freshMatches = []
       
       if (competition.matches && competition.matches.length > 0) {
-        freshMatches = competition.matches.map((match) => {
-          const newMatch = {
-            id: match.id,
-            competition_id: match.competition_id,
-            team1_id: match.team1_id,
-            team2_id: match.team2_id,
-            team1_name: match.team1_name,
-            team2_name: match.team2_name,
-            match_name: match.match_name,
-            match_date: match.match_date,
-            duration_minutes: match.duration_minutes,
-            current_time: match.current_time,
-            status: match.status,
-            stage: match.stage,
-            round_number: match.round_number,
-            completion_time_milliseconds: match.completion_time_milliseconds,
-            results: match.results ? match.results.map(r => ({
-              id: r.id,
-              team_id: r.team_id,
-              score: r.score,
-              goals: r.goals,
-              fouls: r.fouls,  // Kept for backward compatibility
-              tasks_completed: r.tasks_completed || 0,
-              precision_points: r.precision_points || 0,
-              completion_time_milliseconds: r.completion_time_milliseconds,
-              notes: r.notes
-            })) : [],
-            penalties: match.penalties ? match.penalties.map(p => ({
-              id: p.id,
-              team_id: p.team_id,
-              penalty_type: p.penalty_type,
-              points: p.points,
-              description: p.description,
-              time_occurred: p.time_occurred,
-              issued_by: p.issued_by
-            })) : [],
-            penalties_count: match.penalties_count || 0
-          }
-          return newMatch
-        })
+        // Map base match data from competition API response
+        const baseMapped = competition.matches.map((match) => ({
+          id: match.id,
+          competition_id: match.competition_id,
+          team1_id: match.team1_id,
+          team2_id: match.team2_id,
+          team1_name: match.team1_name,
+          team2_name: match.team2_name,
+          match_name: match.match_name,
+          match_date: match.match_date,
+          duration_minutes: match.duration_minutes,
+          current_time: match.current_time,
+          status: match.status,
+          stage: match.stage,
+          round_number: match.round_number,
+          completion_time_milliseconds: match.completion_time_milliseconds,
+          results: match.results ? match.results.map(r => ({
+            id: r.id, team_id: r.team_id, score: r.score, goals: r.goals,
+            fouls: r.fouls, tasks_completed: r.tasks_completed || 0,
+            precision_points: r.precision_points || 0,
+            completion_time_milliseconds: r.completion_time_milliseconds, notes: r.notes
+          })) : [],
+          penalties: match.penalties ? match.penalties.map(p => ({
+            id: p.id, team_id: p.team_id, penalty_type: p.penalty_type,
+            points: p.points, description: p.description,
+            time_occurred: p.time_occurred, issued_by: p.issued_by
+          })) : [],
+          penalties_count: match.penalties_count || 0,
+          splits: []
+        }))
+        // Load splits for each match in parallel
+        await Promise.all(baseMapped.map(async (m) => {
+          try {
+            m.splits = await splitTimesAPI.getAll(m.id)
+          } catch { m.splits = [] }
+        }))
+        freshMatches = baseMapped
       } else {
         const matchesData = await matchesAPI.getAll(competitionId)
         // Load results for each match
@@ -272,8 +271,11 @@ function Competitions() {
           try {
             const results = await resultsAPI.getAll(match.id)
             const penalties = await penaltiesAPI.getAll(match.id)
+            let splits = []
+            try { splits = await splitTimesAPI.getAll(match.id) } catch {}
             freshMatches.push({
               ...match,
+              splits: splits || [],
               results: results || [],
               penalties: penalties || [],
               penalties_count: penalties?.length || 0
@@ -334,10 +336,11 @@ function Competitions() {
             issued_by: p.issued_by
           })) : [],
           penalties_count: m.penalties_count || 0,
+          splits: m.splits || [],
           _renderKey: refreshTimestamp,
           _scoreKey: `${score1}-${score2}`,
           _timestamp: refreshTimestamp,
-          _forceUpdate: refreshTimestamp // Extra flag to force update
+          _forceUpdate: refreshTimestamp
         }
       })
       
@@ -482,7 +485,7 @@ function Competitions() {
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1419 100%)',
       position: 'relative',
-      overflow: 'hidden'
+      overflowX: 'hidden'
     }}>
       {/* Animated Background Grid */}
       <div style={{
@@ -504,18 +507,14 @@ function Competitions() {
       <div style={{ 
         position: 'relative',
         zIndex: 1,
-        padding: '2rem',
+        padding: 'var(--page-pad)',
         width: '100%',
         maxWidth: '100%',
         margin: 0,
-        minHeight: '100vh',
         boxSizing: 'border-box',
-        display: 'grid',
-        gridTemplateColumns: '1fr 2.5fr',
-        gap: '3rem'
-      }}>
+      }} className="rc-comp-layout">
         {/* Left Panel - Competition List */}
-        <div style={{ overflowY: 'auto' }}>
+        <div className="rc-comp-left" style={{ overflowY: 'auto' }}>
           {loading ? (
             <div style={{ textAlign: 'center', padding: '2rem', color: '#a0e0ff' }}>
               <p>Loading competitions...</p>
@@ -721,7 +720,7 @@ function Competitions() {
         </div>
 
         {/* Right Panel - Main Content */}
-        <div style={{ overflowY: 'auto' }}>
+        <div className="rc-comp-right" style={{ overflowY: 'auto' }}>
         <div style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
@@ -1106,20 +1105,9 @@ function Competitions() {
                                     })()}
                                   </span>
                                 )}
-                                {matchData.stage && (
-                                  <span style={{ color: '#a0e0ff', fontSize: '0.9rem', fontWeight: '500' }}>
-                                    🏆 {matchData.stage}
-                                    {matchData.round_number && ` - Round ${matchData.round_number}`}
-                                  </span>
-                                )}
                                 {matchData.match_date && (
                                   <span style={{ color: '#a0e0ff', fontSize: '0.9rem', fontWeight: '500' }}>
                                     📅 {formatDate(matchData.match_date)}
-                                  </span>
-                                )}
-                                {matchData.duration_minutes > 0 && (
-                                  <span style={{ color: '#a0e0ff', fontSize: '0.9rem', fontWeight: '500' }}>
-                                    ⏱️ {matchData.duration_minutes} min
                                   </span>
                                 )}
                                 {/* Timer Display - Show for both live and paused matches */}
@@ -1170,26 +1158,14 @@ function Competitions() {
                                       }}>
                                         {/* timerTick forces re-render every second */}
                                         {(() => {
-                                          // Use local timer if available, otherwise use server time
-                                          // timerTick dependency ensures this re-renders every second
-                                          const _ = timerTick // Reference timerTick to force re-render
+                                          const _ = timerTick
                                           const localTimer = matchTimers[matchData.id]
                                           const elapsedSeconds = (localTimer?.value ?? matchData.current_time) || 0
-                                          const totalDurationSeconds = matchData.duration_minutes > 0 ? matchData.duration_minutes * 60 : 0
-                                          const remainingSeconds = totalDurationSeconds > 0 ? Math.max(0, totalDurationSeconds - elapsedSeconds) : elapsedSeconds
-                                          const minutes = Math.floor(remainingSeconds / 60)
-                                          const seconds = remainingSeconds % 60
+                                          const minutes = Math.floor(elapsedSeconds / 60)
+                                          const seconds = elapsedSeconds % 60
                                           return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
                                         })()}
                                       </span>
-                                      {matchData.duration_minutes > 0 && (
-                                        <span style={{
-                                          color: '#6b9bc2',
-                                          fontSize: '0.8rem'
-                                        }}>
-                                          / {matchData.duration_minutes}:00
-                                        </span>
-                                      )}
                                     </>
                                   )}
                                 </div>
@@ -1239,39 +1215,34 @@ function Competitions() {
                             position: 'relative',
                             zIndex: 1
                           }}>
-                            {/* Main Score Display - one column for solo, three for two teams */}
-                            <div style={{
-                              display: 'grid',
-                              gridTemplateColumns: matchData.team2_id ? '1fr auto 1fr' : '1fr auto',
-                              gap: '2rem',
-                              alignItems: 'center',
+                            {/* Main Score Display */}
+                            <div className="rc-match-score-display" style={{
                               marginBottom: '2rem',
                               paddingBottom: '2rem',
                               borderBottom: '2px solid rgba(0, 255, 255, 0.3)'
                             }}>
-                              <div style={{ textAlign: matchData.team2_id ? 'right' : 'center' }}>
+                              <div className="rc-match-score-row">
+                              <div style={{ textAlign: 'center', minWidth: 0 }}>
                                 <div style={{ 
                                   fontWeight: 'bold', 
-                                  fontSize: '1.4rem', 
+                                  fontSize: '1.2rem', 
                                   color: '#00ffff',
-                                  marginBottom: '0.5rem',
+                                  marginBottom: '0.25rem',
                                   textShadow: '0 0 10px rgba(0, 255, 255, 0.5)',
-                                  wordWrap: 'break-word',
-                                  overflowWrap: 'break-word',
-                                  maxWidth: '100%'
+                                  wordBreak: 'break-word'
                                 }}>
                                   {matchData.team1_name || 'Team 1'}
                                 </div>
                               </div>
                               <div style={{
-                                fontSize: '4rem',
+                                fontSize: 'var(--score-md)',
                                 fontWeight: 'bold',
                                 color: matchData.status === 'live' ? '#ffaa00' : '#00ffff',
                                 textAlign: 'center',
-                                minWidth: '150px',
+                                flexShrink: 0,
                                 textShadow: matchData.status === 'live' 
-                                  ? '0 0 20px rgba(255, 170, 0, 0.8), 0 0 40px rgba(255, 170, 0, 0.4)'
-                                  : '0 0 20px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.4)',
+                                  ? '0 0 20px rgba(255, 170, 0, 0.8)'
+                                  : '0 0 20px rgba(0, 255, 255, 0.8)',
                                 fontFamily: '"Orbitron", "Arial Black", sans-serif',
                                 letterSpacing: '2px'
                               }}>
@@ -1298,31 +1269,29 @@ function Competitions() {
                                       finalScore2 = rawScore2 - team2TotalPenaltyPoints + team2TasksPoints + team2PrecisionPoints
                                     }
                                   }
-                                  return matchData.team2_id ? `${finalScore1} - ${finalScore2}` : String(finalScore1)
+                                  return matchData.team2_id ? `${finalScore1} : ${finalScore2}` : String(finalScore1)
                                 })()}
                               </div>
                               {matchData.team2_id && (
-                              <div style={{ textAlign: 'left' }}>
+                              <div style={{ textAlign: 'center', minWidth: 0 }}>
                                 <div style={{ 
                                   fontWeight: 'bold', 
                                   fontSize: '1.2rem', 
                                   color: '#00ffff',
-                                  marginBottom: '0.5rem',
-                                  textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'
+                                  marginBottom: '0.25rem',
+                                  textShadow: '0 0 10px rgba(0, 255, 255, 0.5)',
+                                  wordBreak: 'break-word'
                                 }}>
                                   {matchData.team2_name || 'Team 2'}
                                 </div>
                               </div>
                               )}
+                              </div>{/* end rc-match-score-row */}
                             </div>
 
                             {/* Detailed Stats Grid - one column for solo match, two for two teams */}
                             {(team1Result || team2Result || (matchData.results && matchData.results.length > 0)) ? (
-                              <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: matchData.team2_id ? '1fr 1fr' : '1fr',
-                                gap: '1.5rem'
-                              }}>
+                              <div className={`rc-match-teams${matchData.team2_id ? '' : ' rc-match-team-solo'}`} style={{ gap: '1rem' }}>
                                 {/* Team 1 Stats */}
                                 <div style={{
                                   background: 'linear-gradient(135deg, rgba(20, 30, 50, 0.8) 0%, rgba(15, 25, 40, 0.8) 100%)',
@@ -1437,7 +1406,7 @@ function Competitions() {
                                         fontSize: '0.85rem',
                                         fontWeight: '500'
                                       }}>
-                                        🎯 Precision Points
+                                        ✅ Positive Points
                                       </label>
                                       <div style={{ 
                                         fontWeight: 'bold', 
@@ -1598,7 +1567,7 @@ function Competitions() {
                                         fontSize: '0.85rem',
                                         fontWeight: '500'
                                       }}>
-                                        🎯 Precision Points
+                                        ✅ Positive Points
                                       </label>
                                       <div style={{ 
                                         fontWeight: 'bold', 
@@ -1689,9 +1658,6 @@ function Competitions() {
                                   })()}
                                 </span>
                               )}
-                              {matchData.duration_minutes > 0 && (
-                                <span>⏱️ Duration: {matchData.duration_minutes} min</span>
-                              )}
                               {/* Match Status Display */}
                               <div style={{
                                 display: 'flex',
@@ -1740,26 +1706,14 @@ function Competitions() {
                                     }}>
                                       {/* timerTick forces re-render every second */}
                                       {(() => {
-                                        // Use local timer if available, otherwise use server time
-                                        // timerTick dependency ensures this re-renders every second
-                                        const _ = timerTick // Reference timerTick to force re-render
+                                        const _ = timerTick
                                         const localTimer = matchTimers[matchData.id]
                                         const elapsedSeconds = (localTimer?.value ?? matchData.current_time) || 0
-                                        const totalDurationSeconds = matchData.duration_minutes > 0 ? matchData.duration_minutes * 60 : 0
-                                        const remainingSeconds = totalDurationSeconds > 0 ? Math.max(0, totalDurationSeconds - elapsedSeconds) : elapsedSeconds
-                                        const minutes = Math.floor(remainingSeconds / 60)
-                                        const seconds = remainingSeconds % 60
+                                        const minutes = Math.floor(elapsedSeconds / 60)
+                                        const seconds = elapsedSeconds % 60
                                         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
                                       })()}
                                     </span>
-                                    {matchData.duration_minutes > 0 && (
-                                      <span style={{
-                                        color: '#6b9bc2',
-                                        fontSize: '0.85rem'
-                                      }}>
-                                        / {matchData.duration_minutes}:00
-                                      </span>
-                                    )}
                                   </>
                                 )}
                               </div>
@@ -1767,9 +1721,6 @@ function Competitions() {
                                 <span style={{ color: '#dc3545', fontWeight: 'bold' }}>
                                   🟨 Penalties: {matchData.penalties.length}
                                 </span>
-                              )}
-                              {matchData.stage && (
-                                <span>🏆 {matchData.stage}{matchData.round_number ? ` - Round ${matchData.round_number}` : ''}</span>
                               )}
                             </div>
 
@@ -1852,6 +1803,55 @@ function Competitions() {
                               </div>
                             )}
                             
+                            {/* Split Times List */}
+                            {matchData.splits && matchData.splits.length > 0 && (
+                              <div style={{
+                                marginTop: '1.5rem',
+                                paddingTop: '1.5rem',
+                                borderTop: '1px solid rgba(0,255,136,0.3)',
+                                position: 'relative',
+                                zIndex: 1
+                              }}>
+                                <div style={{
+                                  fontWeight: 'bold',
+                                  marginBottom: '0.75rem',
+                                  color: '#00ff88',
+                                  fontSize: '1rem',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '1px',
+                                  textShadow: '0 0 10px rgba(0,255,136,0.5)'
+                                }}>
+                                  ⏱ Medzičasy ({matchData.splits.length})
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                  {matchData.splits.map(s => (
+                                    <div key={s.id} style={{
+                                      padding: '0.6rem 1rem',
+                                      background: 'rgba(0,255,136,0.07)',
+                                      border: '1px solid rgba(0,255,136,0.25)',
+                                      borderRadius: '8px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.75rem',
+                                      flexWrap: 'wrap'
+                                    }}>
+                                      <span style={{ color: '#00ff88', fontFamily: '"Orbitron",monospace', fontWeight: 'bold', fontSize: '1rem', minWidth: '55px' }}>
+                                        {s.time_formatted}
+                                      </span>
+                                      {s.team_name && (
+                                        <span style={{ color: '#a0e0ff', fontWeight: '600', fontSize: '0.85rem' }}>
+                                          {s.team_name}
+                                        </span>
+                                      )}
+                                      {s.label && (
+                                        <span style={{ color: '#6b9bc2', fontSize: '0.8rem' }}>{s.label}</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
                             {/* Full-Screen Scoreboard Button */}
                             <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
                               <button

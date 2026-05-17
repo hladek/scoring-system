@@ -1,17 +1,13 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 function Home() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1419 100%)',
-      position: 'relative',
-      overflow: 'hidden',
-      width: '100%'
-    }}>
+    <div className="rc-page" style={{ overflow: 'hidden' }}>
       {/* Animated Background Grid */}
       <div style={{
         position: 'absolute',
@@ -33,15 +29,15 @@ function Home() {
       <div style={{
         position: 'relative',
         zIndex: 1,
-        minHeight: '90vh',
+        minHeight: '70vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '4rem 2rem',
+        padding: 'var(--page-pad)',
         overflow: 'hidden'
       }}>
         {/* Background Images with Animation */}
-        <div style={{
+        <div className="rc-home-deco" style={{
           position: 'absolute',
           left: '5%',
           top: '50%',
@@ -67,7 +63,7 @@ function Home() {
           />
         </div>
 
-        <div style={{
+        <div className="rc-home-deco" style={{
           position: 'absolute',
           right: '5%',
           top: '50%',
@@ -104,21 +100,11 @@ function Home() {
           textAlign: 'center',
           padding: '2rem'
         }}>
-          <h1 style={{
-            fontSize: '4rem',
-            fontWeight: '900',
-            color: '#00ffff',
-            marginBottom: '1.5rem',
-            textShadow: '0 0 30px rgba(0, 255, 255, 0.8), 0 0 60px rgba(0, 255, 255, 0.4)',
-            letterSpacing: '3px',
-            fontFamily: '"Orbitron", "Arial Black", sans-serif',
-            animation: 'glow 3s ease-in-out infinite alternate'
-          }}>
+          <h1 className="rc-home-title" style={{ animation: 'glow 3s ease-in-out infinite alternate' }}>
             ROBO COMPETITION
           </h1>
           
-          <p style={{
-            fontSize: '1.5rem',
+          <p className="rc-home-subtitle" style={{
             color: '#a0e0ff',
             marginBottom: '2rem',
             fontWeight: '300',
@@ -137,7 +123,7 @@ function Home() {
             marginTop: '3rem'
           }}>
             <button
-              onClick={() => navigate('/competitions')}
+              onClick={() => navigate('/home')}
               style={{
                 padding: '1rem 2.5rem',
                 background: 'linear-gradient(135deg, #00ffff 0%, #0099ff 100%)',
@@ -201,14 +187,14 @@ function Home() {
       <div style={{
         position: 'relative',
         zIndex: 1,
-        padding: '5rem 2rem',
+        padding: 'var(--page-pad)',
         maxWidth: '1400px',
         margin: '0 auto',
         width: '100%'
       }}>
         <h2 style={{
           textAlign: 'center',
-          fontSize: '2.5rem',
+          fontSize: 'var(--title-lg)',
           color: '#00ffff',
           marginBottom: '3rem',
           fontWeight: 'bold',
@@ -219,12 +205,7 @@ function Home() {
           FEATURES
         </h2>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '2rem',
-          marginTop: '3rem'
-        }}>
+        <div className="rc-home-features">
           {/* Feature 1 */}
           <div style={{
             background: 'linear-gradient(135deg, rgba(0, 150, 255, 0.15) 0%, rgba(0, 255, 200, 0.15) 100%)',
@@ -345,14 +326,14 @@ function Home() {
       <div style={{
         position: 'relative',
         zIndex: 1,
-        padding: '5rem 2rem',
+        padding: 'var(--page-pad)',
         maxWidth: '1200px',
         margin: '0 auto',
         width: '100%',
         textAlign: 'center'
       }}>
         <h2 style={{
-          fontSize: '2.5rem',
+          fontSize: 'var(--title-lg)',
           color: '#00ffff',
           marginBottom: '2rem',
           fontWeight: 'bold',

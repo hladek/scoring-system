@@ -92,7 +92,10 @@ def login():
         
         if not user or not verify_password(password, user.password_hash):
             return jsonify({"detail": "Incorrect username or password"}), 401
-        
+
+        if user.role != "admin":
+            return jsonify({"detail": "Access denied. Only admins can log in."}), 403
+
         access_token_expires = timedelta(hours=24)
         access_token = create_access_token(
             data={"sub": user.username, "role": user.role},

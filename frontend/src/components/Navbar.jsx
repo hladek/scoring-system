@@ -5,7 +5,8 @@ import { authAPI, getToken } from '../services/api'
 function Navbar({ navigate: navProp }) {
   const navigate = navProp || useNavigate()
   const [currentUser, setCurrentUser] = useState(null)
-  
+  const [menuOpen, setMenuOpen] = useState(false)
+
   useEffect(() => {
     const loadUser = async () => {
       const token = getToken()
@@ -14,7 +15,6 @@ function Navbar({ navigate: navProp }) {
           const user = await authAPI.getCurrentUser()
           setCurrentUser(user)
         } catch (err) {
-          console.error('Error loading user:', err)
           setCurrentUser(null)
         }
       } else {
@@ -22,331 +22,221 @@ function Navbar({ navigate: navProp }) {
       }
     }
     loadUser()
-    
-    // Listen for storage changes (when user logs in/out in another tab)
-    const handleStorageChange = () => {
-      loadUser()
-    }
+    const handleStorageChange = () => loadUser()
     window.addEventListener('storage', handleStorageChange)
-    
-    // Also check periodically in case token was set in same tab
     const interval = setInterval(loadUser, 2000)
-    
     return () => {
       window.removeEventListener('storage', handleStorageChange)
       clearInterval(interval)
     }
   }, [])
-  
+
   const handleLogout = () => {
     authAPI.logout()
     setCurrentUser(null)
+    setMenuOpen(false)
     navigate('/competitions')
   }
-  
+
+  const go = (path) => {
+    setMenuOpen(false)
+    navigate(path)
+  }
+
+  const btnBase = {
+    padding: '0.6rem 1.2rem',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '0.9rem',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    transition: 'all 0.3s',
+    whiteSpace: 'nowrap'
+  }
+
   return (
-    <nav style={{
-      background: 'linear-gradient(135deg, rgba(20, 30, 50, 0.95) 0%, rgba(15, 25, 40, 0.95) 100%)',
-      color: '#ffffff',
-      padding: '0.75rem 2rem',
-      display: 'flex',
-      gap: '2rem',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      borderBottom: '1px solid rgba(0, 255, 255, 0.2)',
-      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 255, 255, 0.1)',
-      backdropFilter: 'blur(10px)',
-      position: 'sticky',
-      top: 0,
-      zIndex: 100
-    }}>
-      {/* Left Section - Logos */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '1.25rem',
-        flexShrink: 0
-      }}>
-        <img 
-          src="/logos/TUKE.png" 
-          alt="TUKE Logo"
-          onClick={() => window.open('https://www.tuke.sk/sk', '_blank')}
-          style={{
-            height: '40px',
-            width: 'auto',
-            maxWidth: '120px',
-            objectFit: 'contain',
-            filter: 'brightness(1.1) drop-shadow(0 0 5px rgba(255, 255, 255, 0.3))',
-            cursor: 'pointer',
-            transition: 'all 0.3s'
-          }}
-          onError={(e) => {
-            e.target.style.display = 'none'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.1)'
-            e.target.style.filter = 'brightness(1.2) drop-shadow(0 0 8px rgba(255, 255, 255, 0.5))'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-            e.target.style.filter = 'brightness(1.1) drop-shadow(0 0 5px rgba(255, 255, 255, 0.3))'
-          }}
-        />
-        <img 
-          src="/logos/FEI_Placeholder_Image_EN.webp" 
-          alt="TUKE FEI Logo"
-          onClick={() => window.open('https://www.fei.tuke.sk/sk', '_blank')}
-          style={{
-            height: '40px',
-            width: 'auto',
-            maxWidth: '120px',
-            objectFit: 'contain',
-            filter: 'brightness(1.1) drop-shadow(0 0 5px rgba(255, 255, 255, 0.3))',
-            cursor: 'pointer',
-            transition: 'all 0.3s'
-          }}
-          onError={(e) => {
-            e.target.style.display = 'none'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.1)'
-            e.target.style.filter = 'brightness(1.2) drop-shadow(0 0 8px rgba(255, 255, 255, 0.5))'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-            e.target.style.filter = 'brightness(1.1) drop-shadow(0 0 5px rgba(255, 255, 255, 0.3))'
-          }}
-        />
-        <img 
-          src="/logos/kemt.jpg" 
-          alt="TUKE KEMT Logo"
-          onClick={() => window.open('https://kemt.fei.tuke.sk/', '_blank')}
-          style={{
-            height: '40px',
-            width: 'auto',
-            maxWidth: '120px',
-            objectFit: 'contain',
-            filter: 'brightness(1.1) drop-shadow(0 0 5px rgba(255, 255, 255, 0.3))',
-            cursor: 'pointer',
-            transition: 'all 0.3s'
-          }}
-          onError={(e) => {
-            e.target.style.display = 'none'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.1)'
-            e.target.style.filter = 'brightness(1.2) drop-shadow(0 0 8px rgba(255, 255, 255, 0.5))'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-            e.target.style.filter = 'brightness(1.1) drop-shadow(0 0 5px rgba(255, 255, 255, 0.3))'
-          }}
-        />
-      </div>
-      
-      {/* Center Section - Title */}
-      <h1 
-        style={{ 
-          margin: 0, 
-          fontSize: '1.5rem', 
-          cursor: 'pointer',
-          color: '#00ffff',
-          fontWeight: 'bold',
-          textShadow: '0 0 15px rgba(0, 255, 255, 0.5)',
-          letterSpacing: '1px',
-          fontFamily: '"Orbitron", "Arial Black", sans-serif',
-          transition: 'all 0.3s',
-          flexShrink: 0
-        }} 
-        onClick={() => navigate('/')}
-        onMouseEnter={(e) => {
-          e.target.style.textShadow = '0 0 20px rgba(0, 255, 255, 0.8)'
-          e.target.style.transform = 'scale(1.05)'
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.textShadow = '0 0 15px rgba(0, 255, 255, 0.5)'
-          e.target.style.transform = 'scale(1)'
-        }}
-      >
-        RoboComp
-      </h1>
-      
-      {/* Right Section - Navigation Buttons and User Info */}
-      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexShrink: 0 }}>
+    <>
+      <style>{`
+        .rc-navbar {
+          background: linear-gradient(135deg, rgba(20,30,50,0.97) 0%, rgba(15,25,40,0.97) 100%);
+          color: #fff;
+          padding: 0.75rem 1.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border-bottom: 1px solid rgba(0,255,255,0.2);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 0 20px rgba(0,255,255,0.1);
+          backdrop-filter: blur(10px);
+          position: sticky;
+          top: 0;
+          z-index: 200;
+          gap: 1rem;
+        }
+        .rc-navbar-logos {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex-shrink: 0;
+        }
+        .rc-navbar-logos img {
+          height: 36px;
+          width: auto;
+          max-width: 90px;
+          object-fit: contain;
+          cursor: pointer;
+          filter: brightness(1.1) drop-shadow(0 0 4px rgba(255,255,255,0.3));
+          transition: transform 0.2s;
+        }
+        .rc-navbar-logos img:hover { transform: scale(1.08); }
+        .rc-navbar-title {
+          margin: 0;
+          font-size: 1.3rem;
+          cursor: pointer;
+          color: #00ffff;
+          font-weight: bold;
+          text-shadow: 0 0 15px rgba(0,255,255,0.5);
+          letter-spacing: 1px;
+          font-family: "Orbitron","Arial Black",sans-serif;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .rc-navbar-links {
+          display: flex;
+          gap: 0.6rem;
+          align-items: center;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+        .rc-navbar-user {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.4rem 0.8rem;
+          background: rgba(0,255,255,0.1);
+          border-radius: 8px;
+          border: 1px solid rgba(0,255,255,0.3);
+          white-space: nowrap;
+        }
+        .rc-navbar-hamburger {
+          display: none;
+          flex-direction: column;
+          gap: 5px;
+          cursor: pointer;
+          padding: 8px;
+          background: rgba(0,255,255,0.1);
+          border: 1px solid rgba(0,255,255,0.3);
+          border-radius: 8px;
+          flex-shrink: 0;
+        }
+        .rc-navbar-hamburger span {
+          display: block;
+          width: 22px;
+          height: 2px;
+          background: #00ffff;
+          border-radius: 2px;
+          transition: all 0.3s;
+        }
+        .rc-mobile-menu {
+          display: none;
+          flex-direction: column;
+          gap: 0.5rem;
+          padding: 1rem 1.5rem;
+          background: linear-gradient(135deg, rgba(20,30,50,0.98) 0%, rgba(15,25,40,0.98) 100%);
+          border-bottom: 1px solid rgba(0,255,255,0.2);
+          position: sticky;
+          top: 55px;
+          z-index: 199;
+        }
+        .rc-mobile-menu.open { display: flex; }
+        .rc-mobile-menu button {
+          width: 100%;
+          padding: 0.75rem 1rem;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: bold;
+          font-size: 1rem;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        @media (max-width: 768px) {
+          .rc-navbar { padding: 0.6rem 1rem; }
+          .rc-navbar-links { display: none; }
+          .rc-navbar-hamburger { display: flex; }
+          .rc-navbar-logos img { height: 28px; max-width: 60px; }
+          .rc-navbar-title { font-size: 1rem; }
+        }
+      `}</style>
+
+      <nav className="rc-navbar">
+        {/* Logos */}
+        <div className="rc-navbar-logos">
+          <img src="/logos/TUKE.png" alt="TUKE"
+            onClick={() => window.open('https://www.tuke.sk/sk','_blank')}
+            onError={(e) => { e.target.style.display='none' }} />
+          <img src="/logos/FEI_Placeholder_Image_EN.webp" alt="FEI"
+            onClick={() => window.open('https://www.fei.tuke.sk/sk','_blank')}
+            onError={(e) => { e.target.style.display='none' }} />
+          <img src="/logos/kps.png" alt="KPS"
+            onClick={() => window.open('https://kps.fei.tuke.sk/','_blank')}
+            style={{ cursor: 'pointer' }}
+            onError={(e) => { e.target.style.display='none' }} />
+        </div>
+
+        {/* Title */}
+        <h1 className="rc-navbar-title" onClick={() => go('/')}>RoboComp</h1>
+
+        {/* Desktop links */}
+        <div className="rc-navbar-links">
+          {currentUser && (
+            <div className="rc-navbar-user">
+              <span style={{ color:'#a0e0ff', fontSize:'0.8rem' }}>Logged in:</span>
+              <span style={{ color:'#00ffff', fontWeight:'bold', fontSize:'0.85rem' }}>{currentUser.username}</span>
+            </div>
+          )}
+        <button style={{ ...btnBase, background:'linear-gradient(135deg,#00ffff,#0099ff)', color:'#0a0e27', boxShadow:'0 4px 15px rgba(0,255,255,0.4)' }} onClick={() => go('/home')}>Home</button>
+        <button style={{ ...btnBase, background:'linear-gradient(135deg,#00ffff,#0099ff)', color:'#0a0e27', boxShadow:'0 4px 15px rgba(0,255,255,0.4)' }} onClick={() => go('/about')}>About</button>
+          {currentUser && (
+            <button style={{ ...btnBase, background:'linear-gradient(135deg,#00ff88,#00cc66)', color:'#0a0e27', boxShadow:'0 4px 15px rgba(0,255,136,0.4)' }} onClick={() => go('/my-competitions')}>My Competitions</button>
+          )}
+          {!currentUser ? (
+            <button style={{ ...btnBase, background:'linear-gradient(135deg,#00ff88,#00cc66)', color:'#0a0e27', boxShadow:'0 4px 15px rgba(0,255,136,0.4)' }} onClick={() => go('/login')}>Login</button>
+          ) : (
+            <button style={{ ...btnBase, background:'linear-gradient(135deg,#6c757d,#495057)', color:'#fff', boxShadow:'0 4px 15px rgba(108,117,125,0.4)' }} onClick={handleLogout}>Logout</button>
+          )}
+        </div>
+
+        {/* Hamburger */}
+        <div className="rc-navbar-hamburger" onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
+          <span style={{ transform: menuOpen ? 'rotate(45deg) translate(5px,5px)' : 'none' }} />
+          <span style={{ opacity: menuOpen ? 0 : 1 }} />
+          <span style={{ transform: menuOpen ? 'rotate(-45deg) translate(5px,-5px)' : 'none' }} />
+        </div>
+      </nav>
+
+      {/* Mobile dropdown menu */}
+      <div className={`rc-mobile-menu${menuOpen ? ' open' : ''}`}>
         {currentUser && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            padding: '0.5rem 1rem',
-            background: 'rgba(0, 255, 255, 0.1)',
-            borderRadius: '8px',
-            border: '1px solid rgba(0, 255, 255, 0.3)'
-          }}>
-            <span style={{
-              color: '#a0e0ff',
-              fontSize: '0.85rem',
-              fontWeight: '500'
-            }}>
-              Logged in as:
-            </span>
-            <span style={{
-              color: '#00ffff',
-              fontSize: '0.9rem',
-              fontWeight: 'bold',
-              textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'
-            }}>
-              {currentUser.username}
-            </span>
+          <div style={{ color:'#a0e0ff', fontSize:'0.9rem', textAlign:'center', paddingBottom:'0.5rem', borderBottom:'1px solid rgba(0,255,255,0.2)' }}>
+            Logged in as: <strong style={{ color:'#00ffff' }}>{currentUser.username}</strong>
           </div>
         )}
-        <button 
-          onClick={() => navigate('/home')}
-          style={{
-            padding: '0.6rem 1.2rem',
-            background: 'linear-gradient(135deg, #00ffff 0%, #0099ff 100%)',
-            color: '#0a0e27',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '0.9rem',
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            boxShadow: '0 4px 15px rgba(0, 255, 255, 0.4), 0 0 20px rgba(0, 255, 255, 0.2)',
-            transition: 'all 0.3s'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.05)'
-            e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.6), 0 0 30px rgba(0, 255, 255, 0.3)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-            e.target.style.boxShadow = '0 4px 15px rgba(0, 255, 255, 0.4), 0 0 20px rgba(0, 255, 255, 0.2)'
-          }}
-        >
-          Home
-        </button>
-        <button 
-          onClick={() => navigate('/competitions')}
-          style={{
-            padding: '0.6rem 1.2rem',
-            background: 'linear-gradient(135deg, #00ffff 0%, #0099ff 100%)',
-            color: '#0a0e27',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '0.9rem',
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            boxShadow: '0 4px 15px rgba(0, 255, 255, 0.4), 0 0 20px rgba(0, 255, 255, 0.2)',
-            transition: 'all 0.3s'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.05)'
-            e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.6), 0 0 30px rgba(0, 255, 255, 0.3)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-            e.target.style.boxShadow = '0 4px 15px rgba(0, 255, 255, 0.4), 0 0 20px rgba(0, 255, 255, 0.2)'
-          }}
-        >
-          Competitions
-        </button>
+        <button style={{ background:'linear-gradient(135deg,#00ffff,#0099ff)', color:'#0a0e27' }} onClick={() => go('/home')}>Home</button>
+        <button style={{ background:'linear-gradient(135deg,#00ffff,#0099ff)', color:'#0a0e27' }} onClick={() => go('/about')}>About</button>
         {currentUser && (
-          <button 
-            onClick={() => navigate('/my-competitions')}
-            style={{
-              padding: '0.6rem 1.2rem',
-              background: 'linear-gradient(135deg, #00ff88 0%, #00cc66 100%)',
-              color: '#0a0e27',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '0.9rem',
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
-              boxShadow: '0 4px 15px rgba(0, 255, 136, 0.4), 0 0 20px rgba(0, 255, 136, 0.2)',
-              transition: 'all 0.3s'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.transform = 'scale(1.05)'
-              e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 136, 0.6), 0 0 30px rgba(0, 255, 136, 0.3)'
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = 'scale(1)'
-              e.target.style.boxShadow = '0 4px 15px rgba(0, 255, 136, 0.4), 0 0 20px rgba(0, 255, 136, 0.2)'
-            }}
-          >
-            My Competitions
-          </button>
+          <button style={{ background:'linear-gradient(135deg,#00ff88,#00cc66)', color:'#0a0e27' }} onClick={() => go('/my-competitions')}>My Competitions</button>
         )}
         {!currentUser ? (
-          <>
-            <button 
-              onClick={() => navigate('/login')}
-              style={{
-                padding: '0.6rem 1.2rem',
-                background: 'linear-gradient(135deg, #00ff88 0%, #00cc66 100%)',
-                color: '#0a0e27',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '0.9rem',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                boxShadow: '0 4px 15px rgba(0, 255, 136, 0.4), 0 0 20px rgba(0, 255, 136, 0.2)',
-                transition: 'all 0.3s'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'scale(1.05)'
-                e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 136, 0.6), 0 0 30px rgba(0, 255, 136, 0.3)'
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'scale(1)'
-                e.target.style.boxShadow = '0 4px 15px rgba(0, 255, 136, 0.4), 0 0 20px rgba(0, 255, 136, 0.2)'
-              }}
-            >
-              Login
-            </button>
-          </>
+          <button style={{ background:'linear-gradient(135deg,#00ff88,#00cc66)', color:'#0a0e27' }} onClick={() => go('/login')}>Login</button>
         ) : (
-          <button 
-            onClick={handleLogout}
-            style={{
-              padding: '0.6rem 1.2rem',
-              background: 'linear-gradient(135deg, #6c757d 0%, #495057 100%)',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '0.9rem',
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
-              boxShadow: '0 4px 15px rgba(108, 117, 125, 0.4), 0 0 20px rgba(108, 117, 125, 0.2)',
-              transition: 'all 0.3s'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.transform = 'scale(1.05)'
-              e.target.style.boxShadow = '0 6px 20px rgba(108, 117, 125, 0.6), 0 0 30px rgba(108, 117, 125, 0.3)'
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = 'scale(1)'
-              e.target.style.boxShadow = '0 4px 15px rgba(108, 117, 125, 0.4), 0 0 20px rgba(108, 117, 125, 0.2)'
-            }}
-          >
-            Logout
-          </button>
+          <button style={{ background:'linear-gradient(135deg,#6c757d,#495057)', color:'#fff' }} onClick={handleLogout}>Logout</button>
         )}
       </div>
-    </nav>
+    </>
   )
 }
 
 export default Navbar
-
-

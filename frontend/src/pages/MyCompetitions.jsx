@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react'
 import { competitionsAPI, matchesAPI, resultsAPI, penaltiesAPI, authAPI, getToken, userTeamsAPI } from '../services/api'
 import { useNavigate } from 'react-router-dom'
 import { subscribeToCompetition, getSocket } from '../services/socket'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 function MyCompetitions() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [competitions, setCompetitions] = useState([])
   const [selectedCompetition, setSelectedCompetition] = useState(null)
   const [matches, setMatches] = useState([])
@@ -189,9 +191,9 @@ function MyCompetitions() {
     <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1419 100%)',
-      padding: '2rem',
+      padding: isMobile ? '1rem' : '2rem',
       position: 'relative',
-      overflow: 'hidden'
+      overflowX: 'hidden'
     }}>
       <div style={{
         position: 'absolute',
@@ -209,13 +211,8 @@ function MyCompetitions() {
       }} />
       
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '1600px', margin: '0 auto' }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '350px 1fr',
-          gap: '2rem',
-          height: 'calc(100vh - 4rem)'
-        }}>
-          <div style={{
+        <div className="rc-mycomp-layout">
+          <div className="rc-mycomp-left" style={{
             background: 'linear-gradient(135deg, rgba(20, 30, 50, 0.95) 0%, rgba(15, 25, 40, 0.95) 100%)',
             borderRadius: '16px',
             border: '1px solid rgba(0, 255, 255, 0.3)',
@@ -375,7 +372,7 @@ function MyCompetitions() {
             </div>
           </div>
           
-          <div style={{
+          <div className="rc-mycomp-right" style={{
             background: 'linear-gradient(135deg, rgba(20, 30, 50, 0.95) 0%, rgba(15, 25, 40, 0.95) 100%)',
             borderRadius: '16px',
             border: '1px solid rgba(0, 255, 255, 0.3)',
@@ -568,21 +565,11 @@ function MyCompetitions() {
                                         const _ = timerTick
                                         const localTimer = matchTimers[matchData.id]
                                         const elapsedSeconds = (localTimer?.value ?? matchData.current_time) || 0
-                                        const totalDurationSeconds = matchData.duration_minutes > 0 ? matchData.duration_minutes * 60 : 0
-                                        const remainingSeconds = totalDurationSeconds > 0 ? Math.max(0, totalDurationSeconds - elapsedSeconds) : elapsedSeconds
-                                        const minutes = Math.floor(remainingSeconds / 60)
-                                        const seconds = remainingSeconds % 60
+                                        const minutes = Math.floor(elapsedSeconds / 60)
+                                        const seconds = elapsedSeconds % 60
                                         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
                                       })()}
                                     </span>
-                                    {matchData.duration_minutes > 0 && (
-                                      <span style={{
-                                        color: '#6b9bc2',
-                                        fontSize: '0.8rem'
-                                      }}>
-                                        / {matchData.duration_minutes}:00
-                                      </span>
-                                    )}
                                   </>
                                 )}
                               </div>

@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import Navbar from './components/Navbar'
-import Home from './pages/Home'
+import About from './pages/Home'
 import Login from './pages/Login'
 import Competitions from './pages/Competitions'
 import MyCompetitions from './pages/MyCompetitions'
@@ -23,8 +23,9 @@ function App() {
       {!hideNavbar && <Navbar navigate={navigate} />}
       <main>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/home" element={<Home />} />
+          <Route path="/" element={<Competitions />} />
+          <Route path="/home" element={<Competitions />} />
+          <Route path="/about" element={<About />} />
           <Route path="/competitions" element={<Competitions />} />
           <Route path="/my-competitions" element={<MyCompetitions />} />
           <Route path="/login" element={<Login navigate={navigate} />} />

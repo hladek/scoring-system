@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authAPI } from '../services/api'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 function Login({ navigate: navProp }) {
   const navigate = navProp || useNavigate()
+  const isMobile = useIsMobile()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [copied, setCopied] = useState({ username: false, password: false })
@@ -21,16 +23,10 @@ function Login({ navigate: navProp }) {
     setError(null)
     
     try {
-      const response = await authAPI.login(username, password)
-      // Redirect based on user role
-      if (response.user.role === 'admin') {
-        navigate('/admin')
-      } else {
-        // Regular users go to competitions page
-        navigate('/competitions')
-      }
+      await authAPI.login(username, password)
+      navigate('/admin')
     } catch (err) {
-      setError(err.message || 'Login failed. Check your credentials.')
+      setError(err.message || 'Login failed. Only admins can log in.')
     } finally {
       setLoading(false)
     }
@@ -57,12 +53,12 @@ function Login({ navigate: navProp }) {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '2rem'
+      padding: isMobile ? '1rem' : '2rem'
     }}>
       <div style={{
         maxWidth: '450px',
         width: '100%',
-        padding: '2.5rem',
+        padding: isMobile ? '1.25rem' : '2.5rem',
         background: 'linear-gradient(135deg, rgba(0, 150, 255, 0.15) 0%, rgba(0, 255, 200, 0.15) 100%)',
         borderRadius: '16px',
         border: '1px solid rgba(0, 255, 255, 0.3)',

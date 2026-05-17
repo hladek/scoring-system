@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { matchesAPI, resultsAPI, penaltiesAPI, getToken } from '../services/api'
+import { matchesAPI, resultsAPI, penaltiesAPI, splitTimesAPI, getToken } from '../services/api'
 import Notification from '../components/Notification'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { subscribeToMatch, getSocket } from '../services/socket'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 const inputPlaceholderStyle = `
   input::placeholder,
@@ -20,6 +21,7 @@ const inputPlaceholderStyle = `
 function MatchManagement() {
   const { matchId } = useParams()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [match, setMatch] = useState(null)
   const [results, setResults] = useState([])
   const [penalties, setPenalties] = useState([])
@@ -37,6 +39,8 @@ function MatchManagement() {
   })
   const [currentTimer, setCurrentTimer] = useState(0)
   const timerIntervalRef = useRef(null)
+  const [splits, setSplits] = useState([])
+  const [savingSplit, setSavingSplit] = useState(null)
   const matchRef = useRef(match)
   const [pendingMatchChanges, setPendingMatchChanges] = useState(null)
   const [pendingResultsChanges, setPendingResultsChanges] = useState({})
@@ -90,9 +94,9 @@ function MatchManagement() {
     }
   }, [match?.current_time])
 
-  // Timer update for live matches
+  // Timer: counts up from 0 while live; no automatic end at duration
   useEffect(() => {
-    if (match && match.status === 'live' && match.duration_minutes > 0) {
+    if (match && match.status === 'live') {
       timerIntervalRef.current = setInterval(async () => {
         const currentMatch = matchRef.current
         if (!currentMatch || currentMatch.status !== 'live') {
@@ -105,32 +109,14 @@ function MatchManagement() {
 
         const currentTime = currentMatch.current_time || 0
         const newTime = currentTime + 1
-        const maxTime = currentMatch.duration_minutes * 60
 
         setCurrentTimer(newTime)
 
-        if (newTime >= maxTime) {
-          // Auto-complete match when time reaches duration
-          try {
-            await matchesAPI.update(matchId, { status: 'completed', current_time: maxTime })
-            setNotification({ message: 'Match completed automatically!', type: 'success' })
-            loadMatchData()
-            if (timerIntervalRef.current) {
-              clearInterval(timerIntervalRef.current)
-              timerIntervalRef.current = null
-            }
-          } catch (err) {
-            console.error('Error completing match:', err)
-          }
-        } else {
-          // Update timer
-          try {
-            await matchesAPI.updateTimer(matchId, newTime)
-            // Update local match state
-            setMatch(prev => prev ? { ...prev, current_time: newTime } : null)
-          } catch (err) {
-            console.error('Error updating timer:', err)
-          }
+        try {
+          await matchesAPI.updateTimer(matchId, newTime)
+          setMatch(prev => prev ? { ...prev, current_time: newTime } : null)
+        } catch (err) {
+          console.error('Error updating timer:', err)
         }
       }, 1000)
     } else {
@@ -146,7 +132,7 @@ function MatchManagement() {
         timerIntervalRef.current = null
       }
     }
-  }, [match?.status, match?.duration_minutes, matchId])
+  }, [match?.status, matchId])
 
   const loadMatchData = async () => {
     try {
@@ -160,7 +146,10 @@ function MatchManagement() {
       setMatch(matchData)
       setResults(resultsData || [])
       setPenalties(penaltiesData || [])
-      // Clear pending changes when reloading
+      try {
+        const splitsData = await splitTimesAPI.getAll(matchId)
+        setSplits(splitsData || [])
+      } catch { setSplits([]) }
       setPendingMatchChanges(null)
       setPendingResultsChanges({})
     } catch (err) {
@@ -533,18 +522,41 @@ function MatchManagement() {
     )
   }
 
-  const formatTimer = (currentTime, durationMinutes) => {
-    if (currentTime === null || currentTime === undefined) return '00:00'
-    if (durationMinutes && durationMinutes > 0) {
-      const totalSeconds = durationMinutes * 60
-      const remaining = Math.max(0, totalSeconds - currentTime)
-      const mins = Math.floor(remaining / 60)
-      const secs = remaining % 60
-      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-    }
-    const mins = Math.floor(currentTime / 60)
-    const secs = currentTime % 60
+  const formatTimer = (elapsedSeconds) => {
+    if (elapsedSeconds === null || elapsedSeconds === undefined) return '00:00'
+    const t = Math.max(0, Number(elapsedSeconds) || 0)
+    const mins = Math.floor(t / 60)
+    const secs = t % 60
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+
+  const handleRecordSplit = async (teamId) => {
+    setSavingSplit(teamId)
+    try {
+      const timeVal = matchRef.current?.current_time || currentTimer || 0
+      await splitTimesAPI.create({
+        match_id: matchId,
+        team_id: teamId || null,
+        time_seconds: timeVal,
+      })
+      const splitsData = await splitTimesAPI.getAll(matchId)
+      setSplits(splitsData || [])
+      setNotification({ message: 'Medzičas zaznamenaný!', type: 'success' })
+    } catch (err) {
+      setNotification({ message: 'Chyba: ' + err.message, type: 'error' })
+    } finally {
+      setSavingSplit(null)
+    }
+  }
+
+  const handleDeleteSplit = async (splitId) => {
+    try {
+      await splitTimesAPI.delete(splitId)
+      setSplits(prev => prev.filter(s => s.id !== splitId))
+      setNotification({ message: 'Medzičas odstránený.', type: 'success' })
+    } catch (err) {
+      setNotification({ message: 'Chyba: ' + err.message, type: 'error' })
+    }
   }
 
   const handleStopMatch = () => {
@@ -655,13 +667,7 @@ function MatchManagement() {
   return (
     <>
       <style>{inputPlaceholderStyle}</style>
-      <div style={{ 
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1419 100%)',
-        padding: '2rem', 
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
+      <div className="rc-page" style={{ padding: 'var(--page-pad)' }}>
         <div style={{
           position: 'absolute',
           top: 0,
@@ -683,7 +689,7 @@ function MatchManagement() {
             display: 'flex', 
             flexDirection: 'column',
             marginBottom: '2rem',
-            padding: '2.5rem 3rem',
+            padding: '1.5rem',
             background: 'linear-gradient(135deg, rgba(0, 150, 255, 0.15) 0%, rgba(0, 255, 200, 0.15) 100%)',
             borderRadius: '20px',
             border: '2px solid rgba(0, 255, 255, 0.4)',
@@ -736,8 +742,8 @@ function MatchManagement() {
                 </h1>
               </div>
               
-              {/* Timer Display */}
-              {(match.status === 'live' || match.status === 'paused') && match.duration_minutes > 0 && (
+              {/* Timer Display — elapsed time from match start */}
+              {(match.status === 'live' || match.status === 'paused') && (
                 <div style={{
                   padding: '1.25rem 2.5rem',
                   background: 'rgba(0, 255, 255, 0.15)',
@@ -755,7 +761,7 @@ function MatchManagement() {
                     textTransform: 'uppercase',
                     letterSpacing: '1px'
                   }}>
-                    {match.status === 'live' ? '⏱️ TIME REMAINING' : '⏸️ PAUSED'}
+                    {match.status === 'live' ? '⏱️ ELAPSED TIME' : '⏸️ PAUSED'}
                   </div>
                   <div style={{
                     color: match.status === 'live' ? '#00ffff' : '#ffaa00',
@@ -767,21 +773,14 @@ function MatchManagement() {
                       : '0 0 20px rgba(255, 170, 0, 0.8), 0 0 40px rgba(255, 170, 0, 0.4)',
                     letterSpacing: '2px'
                   }}>
-                    {formatTimer(currentTimer, match.duration_minutes)}
-                  </div>
-                  <div style={{
-                    color: '#6b9bc2',
-                    fontSize: '0.85rem',
-                    marginTop: '0.25rem'
-                  }}>
-                    / {match.duration_minutes}:00
+                    {formatTimer(currentTimer)}
                   </div>
                 </div>
               )}
             </div>
 
             {/* Bottom Row - Controls */}
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <div className="rc-btn-row" style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
               {(match.status === 'live' || match.status === 'paused' || match.status === 'scheduled') && (
                 <button
                   onClick={handleStopMatch}
@@ -1037,52 +1036,34 @@ function MatchManagement() {
           </div>
 
           {/* Bottom Section - Detailed Team Statistics */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: match.team2_id ? '1fr 1fr' : '1fr',
-            gap: '2rem',
-            marginBottom: '2rem'
-          }}>
+          <div className={`rc-match-teams${match.team2_id ? '' : ' rc-match-team-solo'}`}>
             {/* Team 1 Details */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(20, 30, 50, 0.9) 0%, rgba(15, 25, 40, 0.9) 100%)',
-              padding: '2.5rem',
-              borderRadius: '20px',
-              border: '2px solid rgba(0, 255, 255, 0.5)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 255, 255, 0.3), inset 0 0 30px rgba(0, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)'
-            }}>
+            <div className="rc-scoreboard-panel" style={{ padding: '2rem' }}>
               {/* Large Score Display */}
               <div style={{
-                padding: '2rem',
-                background: 'rgba(0, 255, 255, 0.15)',
-                border: '3px solid rgba(0, 255, 255, 0.6)',
+                padding: '1.5rem',
+                background: 'rgba(0,255,255,0.15)',
+                border: '3px solid rgba(0,255,255,0.6)',
                 borderRadius: '16px',
-                marginBottom: '2rem',
+                marginBottom: '1.5rem',
                 textAlign: 'center',
-                boxShadow: '0 0 40px rgba(0, 255, 255, 0.5)'
+                boxShadow: '0 0 40px rgba(0,255,255,0.5)'
               }}>
-                <div style={{
-                  color: '#00ffff',
-                  fontSize: '5rem',
-                  fontWeight: 'bold',
-                  fontFamily: '"Orbitron", monospace',
-                  textShadow: '0 0 30px rgba(0, 255, 255, 1), 0 0 60px rgba(0, 255, 255, 0.6)',
-                  letterSpacing: '4px'
-                }}>
+                <div className="rc-score-big">
                   {finalScore1}
                 </div>
               </div>
               
               <h3 style={{
                 marginTop: 0,
-                marginBottom: '2rem',
+                marginBottom: '1.5rem',
                 color: '#00ffff',
-                fontSize: '2rem',
+                fontSize: 'var(--title-md)',
                 fontWeight: 'bold',
-                textShadow: '0 0 20px rgba(0, 255, 255, 0.8)',
+                textShadow: '0 0 20px rgba(0,255,255,0.8)',
                 textAlign: 'center',
-                textTransform: 'uppercase'
+                textTransform: 'uppercase',
+                wordBreak: 'break-word'
               }}>
                 {match.team1_name || 'Team 1'} Stats
               </h3>
@@ -1133,7 +1114,7 @@ function MatchManagement() {
                 }}>
                   <div style={{ color: '#a0e0ff', fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>🎯</span>
-                    Precision Points
+                    Positive Points
                   </div>
                   <NumberInput
                     value={team1Result?.precision_points || 0}
@@ -1243,44 +1224,31 @@ function MatchManagement() {
             {match.team2_id && (
             <>
             {/* Team 2 Details */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(20, 30, 50, 0.9) 0%, rgba(15, 25, 40, 0.9) 100%)',
-              padding: '2.5rem',
-              borderRadius: '20px',
-              border: '2px solid rgba(0, 255, 255, 0.5)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 255, 255, 0.3), inset 0 0 30px rgba(0, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)'
-            }}>
+            <div className="rc-scoreboard-panel" style={{ padding: '2rem' }}>
               {/* Large Score Display */}
               <div style={{
-                padding: '2rem',
-                background: 'rgba(0, 255, 255, 0.15)',
-                border: '3px solid rgba(0, 255, 255, 0.6)',
+                padding: '1.5rem',
+                background: 'rgba(0,255,255,0.15)',
+                border: '3px solid rgba(0,255,255,0.6)',
                 borderRadius: '16px',
-                marginBottom: '2rem',
+                marginBottom: '1.5rem',
                 textAlign: 'center',
-                boxShadow: '0 0 40px rgba(0, 255, 255, 0.5)'
+                boxShadow: '0 0 40px rgba(0,255,255,0.5)'
               }}>
-                <div style={{
-                  color: '#00ffff',
-                  fontSize: '5rem',
-                  fontWeight: 'bold',
-                  fontFamily: '"Orbitron", monospace',
-                  textShadow: '0 0 30px rgba(0, 255, 255, 1), 0 0 60px rgba(0, 255, 255, 0.6)',
-                  letterSpacing: '4px'
-                }}>
+                <div className="rc-score-big">
                   {finalScore2}
                 </div>
               </div>
               <h3 style={{
                 marginTop: 0,
-                marginBottom: '2rem',
+                marginBottom: '1.5rem',
                 color: '#00ffff',
-                fontSize: '2rem',
+                fontSize: 'var(--title-md)',
                 fontWeight: 'bold',
-                textShadow: '0 0 20px rgba(0, 255, 255, 0.8)',
+                textShadow: '0 0 20px rgba(0,255,255,0.8)',
                 textAlign: 'center',
-                textTransform: 'uppercase'
+                textTransform: 'uppercase',
+                wordBreak: 'break-word'
               }}>
                 {match.team2_name || 'Team 2'} Stats
               </h3>
@@ -1331,7 +1299,7 @@ function MatchManagement() {
                 }}>
                   <div style={{ color: '#a0e0ff', fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>🎯</span>
-                    Precision Points
+                    Positive Points
                   </div>
                   <NumberInput
                     value={team2Result?.precision_points || 0}
@@ -1403,6 +1371,115 @@ function MatchManagement() {
             )}
           </div>
 
+          {/* ── Split Times Section ─────────────────────── */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(20,30,50,0.8) 0%, rgba(15,25,40,0.8) 100%)',
+            padding: '2rem',
+            borderRadius: '16px',
+            border: '1px solid rgba(0,255,136,0.4)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 0 30px rgba(0,255,136,0.2)',
+            backdropFilter: 'blur(10px)',
+            marginBottom: '2rem'
+          }}>
+            <h2 style={{ margin: '0 0 1.5rem 0', color: '#00ff88', fontSize: '1.8rem', fontWeight: 'bold', textShadow: '0 0 15px rgba(0,255,136,0.5)' }}>
+              ⏱ Medzičasy
+            </h2>
+
+            {/* Record buttons – one per team (and one for no-team solo) */}
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+              {match.team1_id && (
+                <button
+                  disabled={savingSplit === match.team1_id}
+                  onClick={() => handleRecordSplit(match.team1_id)}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: 'linear-gradient(135deg,#00ff88,#00cc66)',
+                    color: '#0a0e27',
+                    border: 'none',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '0.95rem',
+                    boxShadow: '0 4px 15px rgba(0,255,136,0.4)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  📍 {match.team1_name || 'Team 1'} — zaznamenaj {currentTimer > 0 ? `(${String(Math.floor(currentTimer/60)).padStart(2,'0')}:${String(currentTimer%60).padStart(2,'0')})` : ''}
+                </button>
+              )}
+              {match.team2_id && (
+                <button
+                  disabled={savingSplit === match.team2_id}
+                  onClick={() => handleRecordSplit(match.team2_id)}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: 'linear-gradient(135deg,#00ffff,#0099ff)',
+                    color: '#0a0e27',
+                    border: 'none',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '0.95rem',
+                    boxShadow: '0 4px 15px rgba(0,255,255,0.4)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  📍 {match.team2_name || 'Team 2'} — zaznamenaj {currentTimer > 0 ? `(${String(Math.floor(currentTimer/60)).padStart(2,'0')}:${String(currentTimer%60).padStart(2,'0')})` : ''}
+                </button>
+              )}
+              {!match.team1_id && !match.team2_id && (
+                <button
+                  disabled={!!savingSplit}
+                  onClick={() => handleRecordSplit(null)}
+                  style={{ padding: '0.75rem 1.5rem', background: 'linear-gradient(135deg,#00ff88,#00cc66)', color: '#0a0e27', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.95rem' }}
+                >
+                  📍 Zaznamenaj medzičas
+                </button>
+              )}
+            </div>
+
+            {/* List of recorded splits */}
+            {splits.length === 0 ? (
+              <p style={{ color: '#6b9bc2', fontStyle: 'italic', margin: 0 }}>Žiadne medzičasy ešte neboli zaznamenané.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {splits.map(s => (
+                  <div key={s.id} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.75rem 1rem',
+                    background: 'rgba(0,255,136,0.08)',
+                    border: '1px solid rgba(0,255,136,0.3)',
+                    borderRadius: '8px',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                      <span style={{ color: '#00ff88', fontFamily: '"Orbitron",monospace', fontWeight: 'bold', fontSize: '1.1rem', minWidth: '60px' }}>
+                        {s.time_formatted}
+                      </span>
+                      {s.team_name && (
+                        <span style={{ color: '#a0e0ff', fontWeight: '600', fontSize: '0.9rem' }}>
+                          {s.team_name}
+                        </span>
+                      )}
+                      {s.label && (
+                        <span style={{ color: '#6b9bc2', fontSize: '0.85rem' }}>{s.label}</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteSplit(s.id)}
+                      style={{ padding: '0.3rem 0.75rem', background: 'rgba(255,68,68,0.2)', color: '#ff6b6b', border: '1px solid rgba(255,68,68,0.4)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Penalties Section */}
           <div style={{
             background: 'linear-gradient(135deg, rgba(20, 30, 50, 0.8) 0%, rgba(15, 25, 40, 0.8) 100%)',
@@ -1460,7 +1537,7 @@ function MatchManagement() {
                 border: '1px solid rgba(0, 255, 255, 0.3)',
                 marginBottom: '1.5rem'
               }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="rc-match-penalty-form-grid">
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: '#00ffff', fontWeight: 'bold' }}>
                       Team
@@ -1516,7 +1593,7 @@ function MatchManagement() {
                     </select>
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="rc-match-penalty-form-grid">
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: '#00ffff', fontWeight: 'bold' }}>
                       Points

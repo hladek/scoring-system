@@ -418,5 +418,21 @@ export const penaltiesAPI = {
   },
 };
 
+export const splitTimesAPI = {
+  getAll: (matchId = null) => {
+    const url = matchId ? `/api/splits?match_id=${matchId}` : '/api/splits';
+    return apiRequest(url);
+  },
+  create: (data) => {
+    return apiRequest('/api/splits', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  delete: (id) => {
+    return apiRequest(`/api/splits/${id}`, { method: 'DELETE' });
+  },
+};
+
 export { getToken, setToken, removeToken };
 
