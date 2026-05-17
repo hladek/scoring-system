@@ -1,0 +1,336 @@
+/* ============================================================
+   RoboComp – Responsive Layout CSS
+   All layout breakpoints for the whole app.
+   ============================================================ */
+
+/* ---------- BASE TOKENS ---------- */
+:root {
+  --page-pad: 2rem;
+  --panel-pad: 2rem;
+  --title-xl: 4rem;
+  --title-lg: 2.5rem;
+  --title-md: 2rem;
+  --score-xl: 5rem;
+  --score-lg: 3.5rem;
+  --score-md: 3rem;
+}
+
+/* ---------- PAGE WRAPPERS ---------- */
+.rc-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1419 100%);
+  position: relative;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+.rc-page-inner {
+  position: relative;
+  z-index: 1;
+  padding: var(--page-pad);
+  max-width: 1800px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+.rc-bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,255,0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ---------- COMPETITIONS PAGE ---------- */
+.rc-comp-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 2rem;
+  min-height: 100vh;
+  align-items: start;
+}
+.rc-comp-left {
+  overflow-y: auto;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+}
+.rc-comp-right {
+  min-width: 0; /* prevents grid blowout */
+}
+
+/* ---------- MY-COMPETITIONS PAGE ---------- */
+.rc-mycomp-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+.rc-mycomp-left {
+  overflow-y: auto;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+}
+.rc-mycomp-right {
+  min-width: 0;
+}
+
+/* ---------- MATCH MANAGEMENT ---------- */
+.rc-match-teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+.rc-match-team-solo {
+  grid-template-columns: 1fr;
+}
+.rc-match-penalty-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.rc-score-big {
+  font-size: var(--score-xl);
+  font-family: "Orbitron", monospace;
+  font-weight: bold;
+  letter-spacing: 4px;
+  color: #00ffff;
+  text-shadow: 0 0 30px rgba(0,255,255,1), 0 0 60px rgba(0,255,255,0.6);
+}
+
+/* ---------- SCOREBOARD ---------- */
+.rc-scoreboard-teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+}
+.rc-scoreboard-solo {
+  grid-template-columns: 1fr;
+}
+.rc-scoreboard-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;   /* all rows same height */
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+/* ---------- STAT BOX (uniform card inside scoreboard) ---------- */
+.rc-stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem 0.75rem;
+  border-radius: 12px;
+  text-align: center;
+  min-height: 100px;
+}
+.rc-stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #a0e0ff;
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+.rc-stat-value {
+  font-size: 2.5rem;
+  font-weight: bold;
+  font-family: "Orbitron", monospace;
+  text-align: center;
+  line-height: 1;
+}
+.rc-scoreboard-title {
+  font-size: var(--title-xl);
+  color: #00ffff;
+  font-weight: bold;
+  font-family: "Orbitron","Arial Black",sans-serif;
+  text-shadow: 0 0 40px rgba(0,255,255,1), 0 0 80px rgba(0,255,255,0.6);
+  letter-spacing: 4px;
+  word-break: break-word;
+  text-align: center;
+}
+.rc-scoreboard-panel {
+  padding: 3rem;
+  background: linear-gradient(135deg, rgba(20,30,50,0.9) 0%, rgba(15,25,40,0.9) 100%);
+  border-radius: 20px;
+  border: 2px solid rgba(0,255,255,0.5);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 40px rgba(0,255,255,0.3);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+}
+.rc-score-total {
+  font-size: var(--score-lg);
+}
+
+/* ---------- HOME PAGE ---------- */
+.rc-home-title {
+  font-size: var(--title-xl);
+  font-weight: 900;
+  color: #00ffff;
+  text-shadow: 0 0 30px rgba(0,255,255,0.8);
+  letter-spacing: 3px;
+  font-family: "Orbitron","Arial Black",sans-serif;
+  margin-bottom: 1.5rem;
+}
+.rc-home-subtitle {
+  font-size: 1.5rem;
+}
+.rc-home-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  margin-top: 3rem;
+}
+.rc-home-deco { display: block; }
+
+/* ---------- COMPETITION CARD in list ---------- */
+.rc-comp-card-name {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+/* ---------- MATCH DETAIL in competition view ---------- */
+/* Score row: Team1 | Score | Team2 */
+.rc-match-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.rc-match-score-row > * { flex: 1; min-width: 0; }
+.rc-match-score-row > *:nth-child(2) {
+  flex: 0 0 auto;
+  text-align: center;
+}
+
+/* ============================================================
+   TABLET  ≤ 1024px
+   ============================================================ */
+@media (max-width: 1024px) {
+  :root {
+    --page-pad: 1.5rem;
+    --title-xl: 3rem;
+    --score-xl: 4rem;
+    --score-lg: 3rem;
+  }
+  .rc-comp-layout { grid-template-columns: 240px 1fr; }
+  .rc-mycomp-layout { grid-template-columns: 260px 1fr; }
+  .rc-scoreboard-panel { padding: 2rem; }
+}
+
+/* ============================================================
+   MOBILE  ≤ 768px
+   ============================================================ */
+@media (max-width: 768px) {
+  :root {
+    --page-pad: 0.75rem;
+    --panel-pad: 1rem;
+    --title-xl: 1.8rem;
+    --title-lg: 1.4rem;
+    --title-md: 1.2rem;
+    --score-xl: 2.8rem;
+    --score-lg: 2rem;
+    --score-md: 1.8rem;
+  }
+
+  /* ---- Competitions ---- */
+  .rc-comp-layout {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  .rc-comp-left {
+    position: static;
+    max-height: none;
+  }
+
+  /* ---- MyCompetitions ---- */
+  .rc-mycomp-layout {
+    grid-template-columns: 1fr;
+  }
+  .rc-mycomp-left {
+    position: static;
+    max-height: none;
+  }
+
+  /* ---- Match Management penalty form: single column ---- */
+  .rc-match-penalty-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .rc-score-big { font-size: var(--score-xl) !important; letter-spacing: 2px !important; }
+
+  /* ---- Scoreboard: keep teams side by side, compact ---- */
+  .rc-scoreboard-teams {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.75rem !important;
+  }
+  .rc-scoreboard-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+  .rc-stat-box { padding: 0.6rem 0.4rem !important; min-height: 70px !important; }
+  .rc-stat-label { font-size: 0.6rem !important; margin-bottom: 0.25rem !important; }
+  .rc-stat-value { font-size: 1.5rem !important; }
+  .rc-scoreboard-panel { padding: 0.75rem !important; }
+  .rc-scoreboard-panel h3 { font-size: 0.75rem !important; margin-bottom: 0.5rem !important; letter-spacing: 0 !important; }
+  .rc-scoreboard-title { font-size: var(--title-xl) !important; letter-spacing: 1px !important; }
+  .rc-score-total { font-size: var(--score-lg) !important; }
+
+  /* ---- Home ---- */
+  .rc-home-title { font-size: var(--title-xl) !important; letter-spacing: 1px !important; }
+  .rc-home-subtitle { font-size: 1rem !important; }
+  .rc-home-features { grid-template-columns: 1fr !important; margin-top: 1.5rem !important; gap: 1rem !important; }
+  .rc-home-deco { display: none !important; }
+
+  /* ---- Generic page padding ---- */
+  .rc-page-inner { padding: var(--page-pad) !important; }
+
+  /* ---- Buttons in control rows: allow wrap ---- */
+  .rc-btn-row { flex-wrap: wrap !important; gap: 0.5rem !important; }
+
+  /* ---- Match score row: keep horizontal (TUKE | score | UPJS) ---- */
+  .rc-match-score-row { gap: 0.5rem !important; }
+  .rc-match-score-row > *:nth-child(2) { font-size: var(--score-md) !important; }
+
+  /* ---- Match teams: keep 2 columns side by side on mobile ---- */
+  .rc-match-teams {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  /* ---- Compact team stat panels on mobile ---- */
+  .rc-match-teams .rc-scoreboard-panel { padding: 0.6rem !important; }
+  .rc-match-teams h3 { font-size: 0.75rem !important; margin-bottom: 0.5rem !important; letter-spacing: 0 !important; }
+  .rc-match-teams .rc-score-big { font-size: 1.8rem !important; letter-spacing: 0 !important; }
+}
+
+/* ============================================================
+   TINY  ≤ 480px
+   ============================================================ */
+@media (max-width: 480px) {
+  :root {
+    --title-xl: 1.3rem;
+    --score-xl: 1.8rem;
+    --score-lg: 1.5rem;
+    --score-md: 1.5rem;
+  }
+
+  /* stat boxes inside panels */
+  .rc-scoreboard-stats { gap: 0.35rem; }
+  .rc-scoreboard-stats > div { padding: 0.4rem !important; }
+  .rc-scoreboard-stats > div > div:first-child { font-size: 0.6rem !important; margin-bottom: 0.2rem !important; }
+  .rc-scoreboard-stats > div > div:last-child { font-size: 1.2rem !important; }
+
+  /* match detail stat boxes */
+  .rc-match-teams > div > div { font-size: 0.7rem !important; }
+  .rc-match-score-row > *:nth-child(2) { font-size: 1.5rem !important; }
+}
